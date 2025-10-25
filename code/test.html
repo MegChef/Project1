@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Simple API Tester</title>
+</head>
+<body>
+  <h2>Simple API Tester</h2>
+  <p>Base URL: http://localhost/api</p>
+
+  <div id="tests"></div>
+
+  <script>
+    const BASE_URL = "http://localhost/api";
+
+    const endpoints = [
+      { name: "Register User", method: "POST", url: `${BASE_URL}/users/register.php`, fields: ["username", "password"], auth:false },
+      { name: "Login User", method: "POST", url: `${BASE_URL}/users/login.php`, fields: ["username", "password"], auth:false },
+      { name: "Change Password", method: "POST", url: `${BASE_URL}/users/change_password.php`, fields: ["oldPass", "newPass"], auth:true  },
+      { name: "Send Friend Request", method: "POST", url: `${BASE_URL}/friends/send_request.php`, fields: ["senderId", "receiverId"], auth:true },
+      { name: "Get Friend Requests", method: "GET", url: `${BASE_URL}/friends/get_requests.php`, fields: ["userId"], auth:true },
+      { name: "Accept Request", method: "PUT", url: `${BASE_URL}/friends/accept_request.php`, fields: ["requestId", "receiverId"], auth:true },
+      { name: "Reject Request", method: "PUT", url: `${BASE_URL}/friends/reject_request.php`, fields: ["requestId", "receiverId"], auth:true },
+      { name: "List Friends", method: "GET", url: `${BASE_URL}/friends/list_friends.php`, fields: ["userId"], auth:true },
+      { name: "Remove Friend", method: "DELETE", url: `${BASE_URL}/friends/remove_friend.php`, fields: ["friendId", "receiverId"], auth:true },
+      { name: "Delete Self", method: "POST", url: `${BASE_URL}/users/delete_self.php`, fields: ["userId"], auth:true },
+      { name: "Get Users", method: "GET", url: `${BASE_URL}/users/get_users.php`, fields: [], auth:true },
+      { name: "Admin Delete", method: "POST", url: `${BASE_URL}/users/admin_delete.php`, fields: ["adminId", "targetUserId"], auth:true },
+      { name: "Logout", method: "POST", url: `${BASE_URL}/users/logout.php`, fields: ["userId"], auth:true },
+    ];
+
+     const container = document.getElementById("tests");
+
+    endpoints.forEach(ep => {
+      const block = document.createElement("div");
+
+      // Add token input for authenticated endpoints
+      const tokenInput = ep.auth ? '<input name="token" placeholder="Auth Token">' : '';
+
+      block.innerHTML = `
+        <h3>${ep.name}</h3>
+        <p>(${ep.method}) ${ep.url}</p>
+        ${tokenInput}
+        ${ep.fields.map(f => `<input name="${f}" placeholder="${f}">`).join(" ")}
+        <button>Send</button>
+        <pre></pre><hr>
+      `;
+
+      const btn = block.querySelector("button");
+      const out = block.querySelector("pre");
+
+      btn.onclick = async () => {
+        const data = {};
+        block.querySelectorAll("input").forEach(i => { if (i.value) data[i.name] = i.value });
+
+        let url = ep.url;
+        const opts = { method: ep.method, headers: {} };
+
+        // If auth required, set Authorization header
+        if (ep.auth && data.token) {
+          opts.headers['Authorization'] = 'Bearer ' + data.token;
+          delete data.token;
+        }
+
+        // Set Content-Type for POST, PUT, DELETE
+        if (["POST","PUT","DELETE"].includes(ep.method)) {
+          opts.headers['Content-Type'] = 'application/json';
+          opts.body = JSON.stringify(data);
+        } else if (ep.method === "GET" && Object.keys(data).length) {
+          url += "?" + new URLSearchParams(data);
+        }
+
+        try {
+          const res = await fetch(url, opts);
+          const text = await res.text();
+          try {
+            const json = JSON.parse(text);
+            out.textContent = JSON.stringify(json, null, 2);
+          } catch {
+            out.textContent = text;
+          }
+        } catch (e) {
+          out.textContent = "Error: " + e;
+        }
+      };
+
+      container.appendChild(block);
+    });
+  </script>
+</body>
+</html>
+
